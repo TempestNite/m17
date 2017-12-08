@@ -1,0 +1,5 @@
+TypeInfo.[ch] holds information on builtin types and structs.  It also allows you to apply and
+remove array and pointer modifiers.  The addition of modifiers extends the current TypeInfo
+instance, but the removal of modifiers creates a new TypeInfo instance with one less modifier.
+The creation of a new TypeInfo with a reduced modifier set comes in handy when parsing
+expressions involving subscripts and pointer dereferencing.

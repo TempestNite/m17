@@ -1,0 +1,33 @@
+// This is test input file for the CS 421 Compiler Design class lexical analyzer.  You should not see
+// any of these words in the scanner output as it is all part of a comment to be skipped.
+
+0.0 26662 6111e90 1234e-23 1234e+4 6111E90 1234E-23 1234E+4 0xabcdef 0xABCDEF 0789
+deformed constants 0x 132e 123e- 0789 pure raw evil
+
+int
+gcd( int a, int b )
+{
+	if ( b == 0 )
+	{
+		return a;
+	}
+	else
+	{
+		return gcd( b, a % b );
+	}
+}
+
+char int float struct void while do for if else return read write allocate deallocate func
+CHAR INT FLOAT STRUCT VOID whIle DO FOR IF ELSE RETURN READ WRITE ALLOCATE DEALLOCATe FUNC
+"char" "int" "float" "struct" "void" "while" "do" "for" "if" "else" "return" "read" "write" "allocate" "deallocate" "func"
+"unclosed quoted string
+
+// this is a comment
+
+/*
+char int float struct void while do for if else return read write allocate deallocate func
+CHAR INT FLOAT STRUCT VOID WHILE DO FOR IF ELSE RETURN READ WRITE ALLOCATE DEALLOCATe FUNC
+*/ */
+
+All those damned operators and punctuation marks ()[]{};,.&&||==!=><>=<=+-*/%=
+more evil: & /**/

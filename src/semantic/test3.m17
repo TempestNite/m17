@@ -1,0 +1,19 @@
+int
+main( int argc ; char ** argv )
+{
+	int c, d, e;
+	struct undeclared	test;
+
+	c = d + e;
+	{
+		int	f, g;
+
+		return f;
+	}
+	{
+		int [10]	h, i;
+
+		return h[0];
+	}
+	return 0;
+}

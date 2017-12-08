@@ -1,0 +1,12 @@
+// test of compiler ability to parse code and process declarations in sequential and nested scopes
+
+int
+main( int argc ; char ** argv )
+{
+	int c, d, e;
+	int[10][20][30]	h;
+
+	e = h[1][2][3];
+	c = d + e;
+	return 0;
+}

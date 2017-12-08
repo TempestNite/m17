@@ -1,0 +1,29 @@
+symbol_table.[ch] holds the scoping information for Morbius-17.  It also knows the scoping rules,
+which are similar to C and Algol.  symbol-table.c maintains a LIFO list of nested scopes,
+functions and structs.
+
+The functions enter_scope(), enter_function() and enter_struct() all push a new
+scope/function/struct onto the LIFO list.  Declaration instances for variables, parameters and
+struct members are added to the DeclarationList for the most recently entered
+scope/function/struct.
+
+The function exit_scope()) should be called after all local declarations have been parsed.
+
+The function exit_function() should be called when the parser reaches the end of a
+function.
+
+The function exit_struct() should be called when the parser reaches the end of a struct
+definition.
+
+For every enter_*() function call, there should be a corresponding exit_*() function call.  The
+exit*() functions pop the most recently added scope off the LIFO scope list.
+
+Keep in mind that local variable information with in a scope is destroyed after the parser exits
+a scope.  The struct member Declaration  information within a struct and the formal parameter
+Declaration information for a function is preserved even after the parser has finished with the
+definition of the struct or function.  Member and formal parameter declaration information is
+destroyed only when the scope that contains the definition of the struct or function is exited.
+
+lookup_declaration() encapsulates the scoping rules of Morbius-17.  Given an identifier,
+lookup_declaration will find this corresponding Declaration starting from the nearest enclosing
+scope and working outwards.  A zero return value means no corresponding declaration can be found.

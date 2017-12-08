@@ -1,0 +1,10 @@
+DeclarationList.[ch]
+
+DeclarationList is an extensible list of declarations for one scope, block, struct or function.
+You can pass a null (i.e. zero) pointer to add_decl() to add the first Declaration and use that
+same pointer to add successive Declarations to the same DeclarationList.
+
+The lookup_decl() function returns a pointer to a Declaration whose name matches the identifier
+in the second argument.
+
+The destroy_decl_list() deallocates the memory allocated for the contained Declaration instances.

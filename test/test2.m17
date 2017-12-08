@@ -1,0 +1,7 @@
+// Test of compiler ability to process struct definitions.
+
+struct test {
+	int		x;
+	int [30]	w;
+	int		y, z;
+}

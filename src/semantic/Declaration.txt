@@ -1,0 +1,15 @@
+Declaration.[ch]
+
+The Declaration struct holds information for any kind of declaration we need:  variable,
+formal_parameter, struct, member of struct, function and scope.  The information required for
+each kind of declaration is different and is contained in each of the different structs
+specialized for each kind of declaration.
+
+The Declaration has a tag that answers the initial semantic question:  Given an identfier, what
+is it?  The DeclTag provides that answer and from there, you can decide which member of the union
+in the Declaration you need to access.
+
+The different kinds of declaration can be extended as needed independently of the other kind of
+declaration.  Putting the different kind of declaration a union allows me to make extensible
+arrays of Declarations (See DeclarationList.[ch]).
+

@@ -1,0 +1,27 @@
+PA1: Lexical Analyzer
+
+The lexical analyzer reads in characters and determines the types of input provided in the file read
+in as arg[1] or the second argument.
+
+The analyzer works by controlling the cursor of the Input object. There are probably errors that were
+not accounted for in the design. All of the symbols are allowed to be adjacent to any character.
+
+No string builder was used. Items were added immediately into the token lexeme. When an error was
+encountered, memset writes over the lexeme and the Token class' lexeme is free'd.
+
+The proposed design composed of analyzing the CIC, current-input-character and adjacent character 
+which are analyzed and take part in determining the type of token and the content of the lexeme.
+
+Run with:
+
+./scan <textfile>
+
+PA2: Parser
+
+The parser determines if the string of tokens follows the structure, or grammar of the Morbius 17 language.
+Syntax is checked against the grammar before heading onto semantic analysis and code generation.
+
+Run with:
+
+./m17 <textfile>
+
