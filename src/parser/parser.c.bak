@@ -7,25 +7,24 @@
 #include <semantic.h>
 #include <symbol_table.h>
 #include <Result.h>
+#include <LocGen.h>
 
 Token* token;
 Token* curTok;
-
 
 int setupParser(int fd)
 {
     printf("STEP1\n");
     setupScanner(fd);
-    setup_symbol_table();
-    enter_scope();
     printf("SETUPSCAN\n");
-    token = malloc(sizeof (*token) );
+    // enter_scope();
+    token = malloc(sizeof (Token) );
     token -> lineNumber = 1;
     startcic();
     getToken(token);
-    curTok = malloc(sizeof (*token) );
-    memcpy(curTok, token, sizeof(*token));
-    memset(token, 0, sizeof(*token));
+    curTok = malloc(sizeof (Token) );
+    memcpy(curTok, token, sizeof(Token));
+    memset(token, 0, sizeof(Token));
     startcic();
     getToken(token);
     return 0;
@@ -33,8 +32,8 @@ int setupParser(int fd)
 
 int program ()
 {
+    enter_scope();
     decldefn_list();
-    exit_scope();
     clearToken(token);
     clearToken(curTok);
     free(token);
@@ -56,7 +55,8 @@ int decldefn_list()
 int decldefn()
 {
     printf("DECLDEFN\n");
-    Type* stype = malloc(sizeof(*stype));
+    Type* stype;
+    stype = malloc(sizeof(Type));
 
     if (recognize(VOID_M) == 0)
     {
@@ -65,9 +65,11 @@ int decldefn()
         {
             if (recognize(STRUCT_M) == 0)
                 return 0;
-            else if (recognize(ID_M) == 0)
+            else if (curTok->id != ID_M)
                 return syntax_error("ID after struct\n");
-            else if (stsuffix(stype) == 0)
+            else if (printf("MATCHED_1!%30s%10d\n",curTok->lexeme, curTok->id),
+                        nextTok(),
+                        stsuffix(stype, add_struct(curTok->lexeme)) == 0)
                 return syntax_error("stsuffix after ID\n");
             else return 1;
         }
@@ -88,34 +90,23 @@ int decldefn_suf()
 
     if (decldefn() == 0)
         return 0; // decldefn decldefsuf
-    else if (decldefn_suf() == 0)
-        return 1; // empty
-    else return 1;
+    exit_scope();
+    decldefn_suf(); // return 1 regardless
 }
 
 int scalar_type(Type* stype)
 {
+    //char identifier[sizeof(curTok->lexeme)];
+    //strcpy(identifier, curTok->lexeme);
     printf("SCALAR_TYPE\n");
-    // 
-    // stype->identifier = realloc(stype->identifier, sizeof(*(curTok->lexeme)));
-    printf("HERE NOW\n");
-    if ( curTok->id == CHAR_M ) 
+    if ( recognize(CHAR_M) )
     {
-        memcpy(stype->identifier, curTok->lexeme, sizeof(curTok->lexeme));
-        nextTok();
-        stype->typeinfo = make_builtin_type(type_char, stype);
-
-        // printf("NOT MADE\n");
-
+        make_builtin_type(type_char, stype);
         return 1;
     }
-    else if( curTok->id == INT_M )
+    else if ( recognize(INT_M) )
     {
-        memcpy(stype->identifier, curTok->lexeme, sizeof(curTok->lexeme));
-        nextTok();
         make_builtin_type(type_int, stype);
-        //free(stype->typeinfo);
-        // printf("NOT MADE\n");
         return 1;
     }
     else if ( recognize(FLOAT_M) )
@@ -128,11 +119,12 @@ int scalar_type(Type* stype)
 
 int function(Type* stype)
 {
-    printf("FUNCTION%d\n", curTok->id);
     Declaration* decl;
+    printf("FUNCTION\n");
     if ( curTok->id != ID_M )
         return 0;
-    else if (decl = add_function(curTok->lexeme, stype), nextTok(),
+    else if (printf("MATCHED_2!%30s%10d\n",curTok->lexeme, curTok->id),
+                decl=add_function(curTok->lexeme, stype), nextTok(),
                 recognize(lparenth) == 0)
         return syntax_error("Left paren after function identifier\n");
     else if (enter_function(decl), opt_parm_list(stype) == 0)
@@ -140,7 +132,7 @@ int function(Type* stype)
     else if (recognize(rparenth) == 0)
         return syntax_error("Right paren after function identifier\n");
     fcnsuf(stype);
-    return exit_function();
+    exit_function();
 }
 
 int opt_parm_list(Type* stype)
@@ -153,65 +145,131 @@ int opt_parm_list(Type* stype)
 
 int parm_list(Type* stype)
 {
+    LocGen parm_gen;
+    setupLocGen(&parm_gen, ot_parm);
     printf("PARM_LIST\n");
-    if (parm(stype) == 0)
+    if (parm(stype, &parm_gen) == 0)
         return 0;
-    else if (ropl() == 0)
+    else if (ropl(stype, &parm_gen) == 0)
         return 1;
     else return 1;
 }
 
-int parm(Type* stype)
+int parm(Type* stype, LocGen* parm_gen)
 {
     printf("PARM\n");
 
     if (type(stype) == 0)
         return 0;
-    else if (identifier_list() == 0)
+    else if (identifier_list(stype, ot_parm, parm_gen) == 0)
         return syntax_error("identifier_list after type for parm\n");
     else return 1;
 }
 
-int ropl(Type* stype)
+/*
+parm() gets type_info from type()
+parm() calls identifier_list() passing typeinfo
+and parameter-specific locgen. Identifier_list() assigns location
+to each identifier and assigns type to each identifier
+*/
+
+int ropl(Type* stype, LocGen* parm_gen)
 {
     printf("REST OF PARM LIST\n");
-    printf("GG %s\n", curTok->lexeme);
+    // printf("GG %s\n", curTok->lexeme);
 
     if (recognize(semicolon) == 0)
         return 0;
-    else if (parm(stype) == 0)
+    else if (parm(stype, parm_gen) == 0)
         return syntax_error("parm after semicolon\n");
-    else if (ropl(stype) == 0)
+    else if (ropl(stype, parm_gen) == 0)
         return 1;
     else return 1;
 }
 
-int identifier_list()
+int identifier_list(Type* stype, OGtype ogtype, LocGen* loc_gen)
 {
     printf("IDENTIFIER LIST\n");
-    if (recognize(ID_M) == 0)
+    char loc[32];
+    if (curTok->id != ID_M)
         return 0;
-    else if (roidl() == 0)
-        return 1;
-    else return 1; // FIX
+
+    else if (printf("MATCHED_3!%30s%10d\n",curTok->lexeme, curTok->id),
+                sprintf(loc, "%d", get_location(loc_gen,
+                                        get_size(stype->typeinfo), 32,
+                                        curTok->lexeme)),
+                ogtype == ot_parm)
+    {
+        // LocGen for parms
+        add_parameter(curTok->lexeme, stype, loc);
+    }
+
+    else if (ogtype == ot_member)
+    {
+        // LocGen for members
+        
+        add_member(curTok->lexeme, stype, loc);
+    }
+
+    else if (ogtype == ot_auto)
+    {
+        // LocGen for local vars
+        add_variable(curTok->lexeme, stype, loc);
+    }
+    // free(loc);
+    nextTok();
+    roidl(stype, ogtype, loc_gen);
+    return 1;
 }
 
-int roidl()
+int roidl(Type* stype, OGtype ogtype, LocGen* loc_gen)
 {
     printf("ROIDL\n");
+    char loc[32];
+    // loc = malloc(sizeof(32));
     if (recognize(comma) == 0)
-        return 1;
-    else if (recognize(ID_M) == 0)
+        return 0;
+    else if (curTok->id != ID_M)
         return syntax_error("no identifier following comma in roidl\n");
-    else return roidl();
+    else if (printf("MATCHED_4!%30s%10d\n",curTok->lexeme, curTok->id),
+                ogtype == ot_parm)
+        {
+            // LocGen for parms
+            sprintf(loc, "%d", get_location(loc_gen,
+                                            get_size(stype->typeinfo), 32,
+                                            curTok->lexeme));
+            add_parameter(curTok->lexeme, stype, loc);
+        }
+
+    else if (ogtype == ot_member)
+    {
+        // LocGen for members
+        sprintf(loc, "%d", get_location(loc_gen,
+                                        get_size(stype->typeinfo), 32,
+                                        curTok->lexeme));
+        add_member(curTok->lexeme, stype, loc);
+    }
+
+    else if (ogtype == ot_auto)
+    {
+        // LocGen for local vars
+        sprintf(loc, "%d", get_location(loc_gen,
+                                        get_size(stype->typeinfo), 32,
+                                        curTok->lexeme));
+        add_variable(curTok->lexeme, stype, loc);
+    }
+    // free(loc);
+    nextTok();
+    roidl(stype, ogtype, loc_gen);
+    return 1;
 }
 
-int type(Type* stype)
+int type(stype)
 {
     printf("TYPE\n");
     if (simple_type(stype) == 0)
         return 0;
-    else if (opt_modifier_list() == 0)
+    else if (opt_modifier_list(stype) == 0)
         return syntax_error("MAY NEED TO CHANGE OPT MOD LIST\n");
     else return 1;
 }
@@ -236,7 +294,7 @@ int opt_expr()
     else return opt_expr();
 }
 
-int expr()
+int expr ()
 {
     printf("EXPR\n");
 
@@ -247,7 +305,7 @@ int expr()
     else return 1;
 }
 
-int while_stmt()
+int while_stmt(Type* stype, LocGen* auto_gen)
 {
     if (recognize(WHILE_M) == 0)
         return 0;
@@ -255,16 +313,16 @@ int while_stmt()
         return syntax_error("Expression after left paren\n");
     else if (recognize(lparenth) == 0)
         return syntax_error("Left paren after while missing\n");
-    else if (stmt() == 0)
+    else if (stmt(stype, auto_gen) == 0)
         return syntax_error("Statement after expression\n");
     else return 1;
 }
 
-int do_while_stmt()
+int do_while_stmt(Type* stype, LocGen* auto_gen)
 {
     if (recognize(DO_M) == 0)
         return 0;
-    else if (stmt() == 0)
+    else if (stmt(stype, auto_gen) == 0)
         return syntax_error("Stmt after do\n");
     else if (recognize(lparenth) == 0)
         return syntax_error("Left paren in do while\n");
@@ -281,9 +339,8 @@ int recognize(int tokenid)
 {
     if (curTok->id == tokenid)
     {
-        printf("MATCHED! %30s%10d\n", curTok->lexeme, curTok->id);
+        printf("MATCHED_5!%30s%10d\n", curTok->lexeme, curTok->id);
         nextTok(); 
-        // printf("WE OK?\n");
         return 1;
     }
     else
@@ -295,9 +352,15 @@ int recognize(int tokenid)
 
 int nextTok()
 {
+    // memset(curTok, 0x0, sizeof(*curTok));
+    int ln, tk;
     curTok = realloc(curTok, sizeof(*token));
     memcpy(curTok, token, sizeof(*token));
-    memset(token, 0x0, sizeof(*token));
+    ln = token->lineNumber;
+    tk = token->tokLen;
+    memset(token, 0x0, sizeof(Token));
+    token->lineNumber = ln;
+    token->tokLen = tk;
     startcic();
     getToken(token);
 }
@@ -315,7 +378,7 @@ int modifier_list(Type* stype)
     printf("MOD_LIST\n");
     if (modifier(stype) == 0)
         return 0;
-    else if (mlsuf(stype) == 0)
+    else if (mlsuf() == 0)
         return 1;
     else return 1;
 }
@@ -348,72 +411,73 @@ int modifier(Type* stype)
     else return 1;
 }
 
-int declaration_stmt(Type* stype)
+int declaration_stmt(Type* stype, LocGen* auto_gen)
 {
     printf("DECLSTMT\n");
     if (type(stype) == 0)
         return 0;
-    else if (identifier_list() == 0)
+    else if (identifier_list(stype, ot_auto, auto_gen) == 0)
         return syntax_error("ID list after type\n");
     else if (recognize(semicolon) == 0)
         return syntax_error("Semicolon after identifier_list in declstmt\n");
     else return 1;
 }
 
-int opt_declarations(Type* stype)
+int opt_declarations(Type* stype, LocGen* auto_gen)
 {
     printf("OPTDECL\n");
-    if (declaration_list(stype) == 0)
+    if (declaration_list(stype, auto_gen) == 0)
         return 1;
-    else return opt_declarations(stype);
+    else return opt_declarations(stype, auto_gen);
 }
 
-int declaration_list(Type* stype)
+int declaration_list(Type* stype, LocGen* auto_gen)
 {
     printf("DECLLIST\n");
-    if (declaration_stmt(stype) == 0)
+    if (declaration_stmt(stype, auto_gen) == 0)
         return 0;
-    else if (declsuf(stype) == 0)
+    else if (declsuf(stype, auto_gen) == 0)
         return 1;
     else return 1; // FIX
 }
 
-int declsuf(Type* stype)
+int declsuf(Type* stype, LocGen* auto_gen)
 {
     printf("DECLSUF\n");
-    if (declaration_stmt(stype) == 0)
+    if (declaration_stmt(stype, auto_gen) == 0)
         return 0;
-    else if (declsuf(stype) == 0)
+    else if (declsuf(stype, auto_gen) == 0)
         return 1;
     else return 1;
 }
 
-int stmt_list(Type* stype)
+int stmt_list(Type* stype, LocGen* auto_gen)
 {
     printf("STMTLIST\n");
-    if (stmt(stype) == 0)
+    if (stmt(stype, auto_gen) == 0)
         return 0;
-    else if (rosl(stype) == 0)
+    else if (rosl(stype, auto_gen) == 0)
         return 1;
     else return 1;
 }
 
-int rosl(Type* stype)
+int rosl(Type* stype, LocGen* auto_gen)
 {
     printf("ROSL\n");
-    if (stmt(stype) == 0)
+    if (stmt(stype, auto_gen) == 0)
         return 0;
-    else if ( rosl(stype) == 0 )
+    else if (rosl(stype, auto_gen) == 0)
         return 1;
     else return 1;
 }
 
-int stmt(Type* stype)
+int stmt(Type* stype, LocGen* auto_gen)
 {
     printf("STMT\n");
-    if ( expr_stmt(stype) || block_stmt(stype) || while_stmt(stype) || \
-             do_while_stmt(stype) || for_stmt(stype) || if_stmt(stype) || \
-             return_stmt() || declaration_stmt(stype) )
+    if ( expr_stmt() || block_stmt(stype, auto_gen) || \
+            while_stmt(stype, auto_gen) || do_while_stmt(stype, auto_gen) || \
+            for_stmt(stype, auto_gen) || if_stmt(stype, auto_gen) || \
+            return_stmt() || declaration_stmt(stype, auto_gen) )
         return 1;
     else return 0;
 }
@@ -428,20 +492,22 @@ int expr_stmt()
     else return 1;
 }
 
-int block_stmt(Type* stype)
+int block_stmt(Type* stype, LocGen* auto_gen)
 {
     printf("BLOCK_STATEMENT\n");
     if (recognize(lcbrace) == 0)
         return 0;
-
-    else if (stmt_list(stype) == 0)
+    else if (enter_scope(), opt_declarations(stype, auto_gen), stmt_list(stype, auto_gen) == 0)
         return 1;
-    else if (recognize(rcbrace) == 0)
+    else if (exit_scope(), recognize(rcbrace) == 0)
+    {
+        printf("THIS IS WHAT IS IN PLACE OF RCBRACE %s\n", curTok->lexeme);
         return syntax_error("Right curly brace in block statement\n");
+    }
     else return 1;
 }
 
-int for_stmt(Type* stype)
+int for_stmt(Type* stype, LocGen* auto_gen)
 {
     printf("FORSTMT\n");
     if (recognize(FOR_M) == 0)
@@ -460,12 +526,12 @@ int for_stmt(Type* stype)
         return 1;
     else if (recognize(rparenth) == 0)
         return syntax_error("Right paren after for stmt\n");
-    else if (stmt(stype) == 0)
+    else if (stmt(stype, auto_gen) == 0)
         return syntax_error("Statement after for stmt\n");
     else return 1;
 }
 
-int if_stmt(Type* stype)
+int if_stmt(Type* stype, LocGen* auto_gen)
 {
     printf("IFSTMT\n");
     if (recognize(IF_M) == 0)
@@ -476,21 +542,21 @@ int if_stmt(Type* stype)
         return 1;
     else if (recognize(rparenth) == 0)
         return syntax_error("Right paren after for stmt\n");
-    else if (stmt(stype) == 0)
+    else if (stmt(stype, auto_gen) == 0)
         return syntax_error("Statement after for stmt\n");
-    else if (opt_else(stype) == 0)
+    else if (opt_else(stype, auto_gen) == 0)
         return 1;
     else return 1;
 }
 
-int opt_else(Type* stype)
+int opt_else(Type* stype, LocGen* auto_gen)
 {
     printf("OPTELSESTMT\n");
     if (recognize(ELSE_M) == 0)
         return 1;
-    else if (stmt(stype) == 0)
+    else if (stmt(stype, auto_gen) == 0)
         return syntax_error("stmt after else");
-    else return opt_else(stype);
+    else return opt_else(stype, auto_gen);
 }
 
 int return_stmt()
@@ -512,15 +578,15 @@ int mlsuf(Type* stype)
         return 0;
     else if (mlsuf(stype) == 0)
         return 1;
-    else return mlsuf(stype);
+    else return 1;
 }
 
-int stsuffix(Type* stype)
+int stsuffix(Type* stype, Declaration* st_decl)
 {
     printf("STSUFFIX\n");
     if (recognize(lcbrace) == 0)
     {
-        if (opt_modifier_list(stype) == 0)
+        if (enter_struct(st_decl), opt_modifier_list(stype) == 0)
             return 0;
         else if (function(stype) == 0)
             return syntax_error("Function after opt_modifier_list\n");
@@ -530,35 +596,38 @@ int stsuffix(Type* stype)
         return syntax_error("Member list after left curly brace in stsuffix\n");
     else if (recognize(rcbrace) == 0)
         return syntax_error("Right curly brace after member list in stsuffix\n");
-    else return 1;
+    else { exit_struct(); return 1; }
 }
 
 int member_list(Type* stype)
 {
+    // HERE WE GO
+    LocGen mem_gen;
+    setupLocGen(&mem_gen, ot_member);
     printf("MEMBERLIST\n");
-    if (member(stype) == 0)
+    if (member(stype, &mem_gen) == 0)
         return 0;
-    else if (roml(stype) == 0)
+    else if (roml(stype, &mem_gen) == 0)
         return 1; // FIX SIMPLIFY
     else return 1;
 }
 
-int roml(Type* stype)
+int roml(Type* stype, LocGen* mem_gen)
 {
     printf("ROML\n");
-    if (member(stype) == 0)
+    if (member(stype, mem_gen) == 0)
         return 0;
-    else if (roml(stype) == 0)
+    else if (roml(stype, mem_gen) == 0)
         return 1;
     else return 1;
 }
 
-int member(Type* stype)
+int member(Type* stype, LocGen* mem_gen)
 {
     printf("MEMBER\n");
     if (type(stype) == 0)
         return 0;
-    else if (identifier_list() == 0)
+    else if (identifier_list(stype, ot_member, mem_gen) == 0)
         return syntax_error("identifier_list after type for member\n");
     else if (recognize(semicolon) == 0)
         return syntax_error("semicolon after identifier_list in member\n");
@@ -569,7 +638,10 @@ int member(Type* stype)
 int fcnsuf(Type* stype)
 {
     printf("FCNSUF\n");
-    if ( (recognize(semicolon) == 0) && (block_stmt(stype) == 0) )
+    // setup
+    LocGen auto_gen;
+    setupLocGen(&auto_gen, ot_auto);
+    if ( (recognize(semicolon) == 0) && (block_stmt(stype, &auto_gen) == 0) )
         return 0;
     else return 1;
 }

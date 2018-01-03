@@ -14,6 +14,7 @@
 #define IS_LESSEQUAL	0x40
 #define IS_GREATERTHAN	0x80
 #define IS_GREATEREQUAL	0x100
+#define NO_VALUE	0x200
 #define IS_ERROR	0x20000
 
 typedef struct Result {
@@ -21,5 +22,7 @@ typedef struct Result {
 	TypeInfo *	type;
 	char		location[40];
 } Result;
+
+TypeInfo *	get_result_type( const Result *, const Result *, const char *, int );
 
 #endif

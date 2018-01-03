@@ -1,0 +1,15 @@
+struct Coord {
+	int	x, y;
+}
+
+int
+main()
+{
+	struct Coord	point;
+
+	point.x = 3;
+	point.y = 4;
+//	point.z = 5;
+	write( point.x, point.y );
+	return 0;
+}

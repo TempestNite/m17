@@ -37,7 +37,7 @@ enter_scope()
 {
 	Declaration *		scope;
 
-	printf( "\x1b[1;32mBKR enter_scope() invoked.\x1b[0m\n" );
+//	fprintf( stderr, "\x1b[1;32mBKR enter_scope() invoked.\x1b[0m\n" );
 	if ( (scope = malloc( sizeof(Declaration) )) == 0 )
 	{
 		internal_error( "malloc() failure file %s line %d.", __FILE__, __LINE__ );
@@ -49,8 +49,8 @@ enter_scope()
 		scope->scope.decl_list = 0;
 		scope->scope.enclosing = symbol_table.nearest;
 		symbol_table.nearest = scope;
-		printf( "BKR enter_scope() scope is %lx enclosing scope is %lx\n", (unsigned long)scope, (unsigned long)(scope->scope.enclosing) );
-		print_scope_stack( __FILE__, __LINE__ );
+//		fprintf( stderr, "BKR enter_scope() scope is %lx enclosing scope is %lx\n", (unsigned long)scope, (unsigned long)(scope->scope.enclosing) );
+//		print_scope_stack( __FILE__, __LINE__ );
 		return scope;
 	}
 }
@@ -76,8 +76,8 @@ exit_scope()
 		next = symbol_table.nearest->scope.enclosing;
 		free( symbol_table.nearest );
 		symbol_table.nearest = next;
-		printf( "\x1b[1;32mBKR exit_scope() file %s line %d.\x1b[0m\n", __FILE__, __LINE__ );
-		print_scope_stack( __FILE__, __LINE__ );
+//		fprintf( stderr, "\x1b[1;32mBKR exit_scope() file %s line %d.\x1b[0m\n", __FILE__, __LINE__ );
+//		print_scope_stack( __FILE__, __LINE__ );
 		return next;
 	}
 }
@@ -92,7 +92,7 @@ enter_struct( Declaration * declaration )
 	}
 	else
 	{
-		printf( "\x1b[1;32mBKR enter_struct() file %s line %d.\x1b[0m\n", __FILE__, __LINE__ );
+//		fprintf( stderr, "\x1b[1;32mBKR enter_struct() file %s line %d.\x1b[0m\n", __FILE__, __LINE__ );
 		declaration->strct.enclosing = symbol_table.nearest;
 		symbol_table.nearest = declaration;
 		return declaration;
@@ -112,7 +112,7 @@ exit_struct()
 	else
 	{
 		symbol_table.nearest = symbol_table.nearest->strct.enclosing;
-		printf( "\x1b[1;32mBKR exit_struct() file %s line %d.\x1b[0m\n", __FILE__, __LINE__ );
+//		fprintf( stderr, "\x1b[1;32mBKR exit_struct() file %s line %d.\x1b[0m\n", __FILE__, __LINE__ );
 		return declaration;
 	}
 }
@@ -127,10 +127,10 @@ enter_function( Declaration * declaration )
 	}
 	else
 	{
-//		printf( "\x1b[1;32mBKR enter_function() file %s line %d.\x1b[0m\n", __FILE__, __LINE__ );
+//		fprintf( stderr, "\x1b[1;32mBKR enter_function() file %s line %d.\x1b[0m\n", __FILE__, __LINE__ );
 		declaration->function.enclosing = symbol_table.nearest;
 		symbol_table.nearest = declaration;
-		printf( "BKR enter_function() scope is %lx enclosing scope is %lx\n", (unsigned long)declaration, (unsigned long)(declaration->function.enclosing) );
+//		fprintf( stderr, "BKR enter_function() scope is %lx enclosing scope is %lx\n", (unsigned long)declaration, (unsigned long)(declaration->function.enclosing) );
 		return declaration;
 	}
 }
@@ -148,8 +148,8 @@ exit_function()
 	else
 	{
 		symbol_table.nearest = symbol_table.nearest->function.enclosing;
-		printf( "\x1b[1;32mBKR exit_function() file %s line %d.\x1b[0m\n", __FILE__, __LINE__ );
-		print_scope_stack( __FILE__, __LINE__ );
+//		fprintf( stderr, "\x1b[1;32mBKR exit_function() file %s line %d.\x1b[0m\n", __FILE__, __LINE__ );
+//		print_scope_stack( __FILE__, __LINE__ );
 		return 1;
 	}
 }
@@ -310,7 +310,7 @@ set_parm_space( int size )
 }
 
 void
-set_struct_space( int size )
+set_struct_space( int size, int alignment )
 {
 	if ( symbol_table.nearest == 0 )
 	{
@@ -322,7 +322,8 @@ set_struct_space( int size )
 	}
 	else
 	{
-		symbol_table.nearest->strct.memory_size = size;
+		symbol_table.nearest->strct.alignment = alignment;
+		symbol_table.nearest->strct.memory_size = (size + alignment -1 ) & ~(alignment -1 );
 	}
 }
 
@@ -410,18 +411,18 @@ print_scope_stack( char * file, int line )
 	{
 		if ( (decl_list = get_decl_list( scope )) == 0 )
 		{
-			printf( "Scope %lx has no declarations\n", (unsigned long)scope );
+			fprintf( stderr, "Scope %lx has no declarations\n", (unsigned long)scope );
 		}
 		else
 		{
-			printf( "Scope %lx contains:\n", (unsigned long)scope );
+			fprintf( stderr, "Scope %lx contains:\n", (unsigned long)scope );
 			for ( i = 0 ; i < decl_list->count ; i++ )
 			{
-//				printf( " %s", get_identifier( decl_list->list + i ) );
+//				fprintf( stderr, " %s", get_identifier( decl_list->list + i ) );
 				printDeclaration( decl_list->list + i, 1 );
 			}
-			printf( "\n" );
+			fprintf( stderr, "\n" );
 		}
 	}
-	printf( "END\n" );
+	fprintf( stderr, "END\n" );
 }

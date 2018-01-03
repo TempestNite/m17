@@ -1,0 +1,6 @@
+int
+main( int argc; char ** argv )
+{
+	write( "cogito ergo sum\n" );
+	return 0;
+}

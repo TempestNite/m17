@@ -7,6 +7,8 @@
 
 static int	byte_size[] = { 0, 0, sizeof(int), sizeof(char), sizeof(float) };
 
+static int	alignment[] = { 0, 1, sizeof(int), sizeof(char), sizeof(float) };
+
 static int
 get_memory_size( TypeInfo * t )
 {
@@ -18,15 +20,16 @@ get_memory_size( TypeInfo * t )
 	{
 		if ( t->modifier[i].tag == mt_pointer )
 		{
-			memory_size = sizeof( void * );
+			t->memory_size = sizeof( void * );
+			t->alignment = sizeof( void * );
 		}
 		else if ( t->modifier[i].tag == mt_array )
 		{
-			memory_size *= t->modifier[i].array_bound;
+			t->memory_size *= t->modifier[i].array_bound;
 		}
 		else
 		{
-			printf( "internal error %s line %d\n", __FILE__, __LINE__ );
+			fprintf( stderr, "internal error %s line %d\n", __FILE__, __LINE__ );
 		}
 	}
 	return memory_size;
@@ -52,7 +55,7 @@ set_array_modifiers( TypeInfo * t )
 		}
 		else
 		{
-			printf( "internal error weird tag %d %s line %d\n", t->modifier[i].tag, __FILE__, __LINE__ );
+			fprintf( stderr, "internal error weird tag %d %s line %d\n", t->modifier[i].tag, __FILE__, __LINE__ );
 		}
 	}
 }
@@ -75,6 +78,7 @@ make_builtin_type( ScalarType scalar_type, Type * btype )
 		t->struct_type = 0;
 		t->basic_size = byte_size[scalar_type];
 		t->memory_size = byte_size[scalar_type];
+		t->alignment = alignment[scalar_type];		// alignmment is 
 		t->modifier_count = 0;
 		btype->typeinfo = t;
 		return t;
@@ -112,6 +116,7 @@ make_struct_type( const char * identifier, Type * stype )
 		t->struct_type = declaration;
 		t->basic_size = declaration->strct.memory_size;
 		t->memory_size = declaration->strct.memory_size;
+		t->alignment = declaration->strct.alignment;
 		t->modifier_count = 0;
 		stype->typeinfo = t;
 		return t;
@@ -169,7 +174,7 @@ add_pointer( Type * atype )
 TypeInfo *
 end_type( TypeInfo * t )
 {
-	t->memory_size = get_memory_size( t );
+	get_memory_size( t );
 	set_array_modifiers( t );
 	return t;
 }
@@ -241,13 +246,13 @@ print_modifier_list( const TypeInfo * t )
 		switch ( t->modifier[i].tag )
 		{
 			case mt_array:
-				printf( "[%d] multiplier %d", t->modifier[i].array_bound, t->modifier[i].multiplier );
+				fprintf( stderr, "[%d] multiplier %d", t->modifier[i].array_bound, t->modifier[i].multiplier );
 				break;
 			case mt_pointer:
-				printf( "*" );
+				fprintf( stderr, "*" );
 				break;
 			default:
-				printf( "unknown modifier tag file %s line %d\n", __FILE__, __LINE__ );
+				fprintf( stderr, "unknown modifier tag file %s line %d\n", __FILE__, __LINE__ );
 				break;
 		}
 	}
@@ -261,14 +266,14 @@ print_typeinfo( const TypeInfo * t, int ind )
 	switch( t->tag )
 	{
 		case tag_scalar:
-			printf( "Type: %s ", scalar_name[t->scalar_type] );
+			fprintf( stderr, "Type: %s ", scalar_name[t->scalar_type] );
 			print_modifier_list( t );
 			break;
 		case tag_struct:
-			printf( "BKR struct ype info not implemented yet.\n" );
+			fprintf( stderr, "BKR struct ype info not implemented yet.\n" );
 			break;
 		default:
-			printf( "unknown modifier tag file %s line %d\n", __FILE__, __LINE__ );
+			fprintf( stderr, "unknown modifier tag file %s line %d\n", __FILE__, __LINE__ );
 			break;
 	}
 }
@@ -277,4 +282,60 @@ int
 get_size( const TypeInfo * t )
 {
 	return t->memory_size;
+}
+
+int
+get_alignment( const Type * type )
+{
+	return type->typeinfo->alignment;
+}
+
+int
+is_array( const TypeInfo * t )
+{
+	if ( t->modifier_count < 1 )			return 0;
+	else if ( t->modifier[0].tag != mt_array )	return 0;
+	else						return 1;
+}
+
+int
+is_pointer( const TypeInfo * t )
+{
+	if ( t->modifier_count < 1 )			return 0;
+	else if ( t->modifier[0].tag != mt_pointer )	return 0;
+	else						return 1;
+}
+
+int
+is_struct( const TypeInfo * t )
+{
+	if ( t->modifier_count > 0 )			return 0;
+	else if ( t->tag != tag_struct )		return 0;
+	else						return 1;
+}
+
+ScalarType
+getScalarType( const TypeInfo * t )
+{
+	if ( t->modifier_count > 0 )			return type_none;
+	else if ( t->tag != tag_scalar )		return type_none;
+	else						return t->scalar_type;
+}
+
+int
+is_char_array( const TypeInfo * t )
+{
+	if ( t->modifier_count != 1 )			return 0;
+	else if ( t->modifier[0].tag != mt_array )	return 0;
+	else if ( t->scalar_type != type_char )		return 0;
+	else						return 1;
+}
+
+int
+is_char_pointer( const TypeInfo * t )
+{
+	if ( t->modifier_count != 1 )			return 0;
+	else if ( t->modifier[0].tag != mt_pointer )	return 0;
+	else if ( t->scalar_type != type_char )		return 0;
+	else						return 1;
 }

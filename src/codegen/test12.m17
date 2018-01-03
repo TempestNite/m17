@@ -1,0 +1,13 @@
+int
+main( int argc; char ** argv )
+{
+	int		a, b, c;
+	int		i;
+
+	read( a );
+	for ( i = 0 ; i < a ; i = i + 1 )
+	{
+		write( a + i );
+	}
+	return 0;
+}

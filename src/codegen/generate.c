@@ -1,6 +1,7 @@
 #include	"generate.h"
 #include	<stdio.h>
 #include	"Result.h"
+#include	"TypeInfo.h"
 #include	<string.h>
 
 int
@@ -20,6 +21,17 @@ generate( const char * label, const char * mnemonic, const char * left_opnd, con
 	else			printf( "\n" );
 
 	return 1;
+}
+
+void
+generate_formats()
+{
+	generate( 0, ".section", ".rodata", 0, 0 );
+	generate( ".fmt_d", ".string", "\"%d\"", 0, 0 );
+	generate( ".fmt_s", ".string", "\"%s\"", 0, 0 );
+	generate( ".fmt_c", ".string", "\"%c\"", 0, 0 );
+	generate( ".fmt_l", ".string", "\"%lx\"", 0, 0 );
+	generate( ".fmt_f", ".string", "\"%g\"", 0, 0 );
 }
 
 void
@@ -78,7 +90,7 @@ generate_anticond_jump( const Result * expr, char * falseLabel )
 	}
 	else
 	{
-		generate( 0, "cmpl", "$0", expr->location, "opnd waa not a condition" );
+		generate( 0, "cmpl", "$0", expr->location, "opnd was not a condition" );
 		generate( 0, "je", falseLabel, 0, 0 );
 	}
 }
@@ -95,7 +107,49 @@ generate_cond_jump( const Result * expr, char * trueLabel )
 	}
 	else
 	{
-		generate( 0, "cmpl", "$0", expr->location, "opnd waa not a condition" );
+		generate( 0, "cmpl", "$0", expr->location, "opnd was not a condition" );
 		generate( 0, "je", trueLabel, 0, 0 );
 	}
 }
+
+void
+adjust_rsp_entry( int autospace )
+{
+	char			string[20];
+
+	if ( autospace > 0 )
+	{
+		sprintf( string, "$%ld", autospace + sizeof( void * ) );
+		generate( 0, "subq", string, "%rsp", 0 );
+	}
+}
+
+void
+adjust_rsp_exit( int autospace )
+{
+	char			string[20];
+
+	if ( autospace > 0 )
+	{
+		sprintf( string, "$%ld", autospace + sizeof( void * ) );
+		generate( 0, "addq", string, "%rsp", 0 );
+	}
+}
+
+const char *
+get_format( const Result * expr )
+{
+	TypeInfo *		t = expr->type;
+
+	if ( is_char_pointer( t ) )	return "$.fmt_s";
+	else if ( is_char_array( t ) )	return "$.fmt_s";
+	else if ( is_pointer( t ) )	return "$.fmt_l";
+	else switch( getScalarType( t ) ) 
+	{
+		case type_char:		return "$.fmt_c";
+		case type_int:		return "$.fmt_d";
+		case type_float:	return "$.fmt_f";
+		default:		return "NO FORMAT";
+	}
+}
+
