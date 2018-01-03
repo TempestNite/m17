@@ -18,7 +18,7 @@ Declaration *	enter_function( Declaration * );
 int		exit_function();
 void		set_scope_space( int );
 void		set_parm_space( int );
-void		set_struct_space( int );
+void		set_struct_space( int, int );
 
 Declaration *	lookup_declaration( const char * identifier );
 Declaration *	lookup_struct( const char * identifier );

@@ -63,7 +63,7 @@ indent( int lim )
 	int		i;
 
 	for ( i = 0 ; i < lim ; i++ )
-		printf( "\t" );
+		fprintf( stderr, "\t" );
 }
 
 void
@@ -72,42 +72,42 @@ printDeclaration( const Declaration * decl, int ind )
 	switch ( decl->tag )
 	{
 		case dt_variable:
-			indent( ind );	printf( "variable:  %s ", decl->variable.identifier );
+			indent( ind );	fprintf( stderr, "variable:  %s ", decl->variable.identifier );
 			indent( ind );	print_typeinfo( decl->variable.type, ind + 1 );
-			indent( ind );	printf( "location:  %s ", decl->variable.location );
-			printf( "\n" );
+			indent( ind );	fprintf( stderr, "location:  %s ", decl->variable.location );
+			fprintf( stderr, "\n" );
 			break;
 		case dt_parameter:
-			indent( ind );	printf( "parameter:  %s ", decl->parameter.identifier );
+			indent( ind );	fprintf( stderr, "parameter:  %s ", decl->parameter.identifier );
 			indent( ind );	print_typeinfo( decl->parameter.type, ind + 1 );
-			indent( ind );	printf( "location:  %s ", decl->parameter.location );
-			printf( "\n" );
+			indent( ind );	fprintf( stderr, "location:  %s ", decl->parameter.location );
+			fprintf( stderr, "\n" );
 			break;
 		case dt_struct:
-			indent( ind );	printf( "struct:  %s ", decl->strct.identifier );
+			indent( ind );	fprintf( stderr, "struct:  %s ", decl->strct.identifier );
 			printDeclarationList( decl->strct.member_list, ind + 1 );
-			indent( ind );	printf( "memory_size:  %d ", decl->strct.memory_size );
-			printf( "\n" );
+			indent( ind );	fprintf( stderr, "memory_size:  %d ", decl->strct.memory_size );
+			fprintf( stderr, "\n" );
 			break;
 		case dt_member:
-			indent( ind );	printf( "member:  %s ", decl->member.identifier );
+			indent( ind );	fprintf( stderr, "member:  %s ", decl->member.identifier );
 			indent( ind );	print_typeinfo( decl->member.type, ind + 1 );
-			indent( ind );	printf( "location:  %s ", decl->member.location );
-			printf( "\n" );
+			indent( ind );	fprintf( stderr, "location:  %s ", decl->member.location );
+			fprintf( stderr, "\n" );
 			break;
 		case dt_function:	
-			indent( ind );	printf( "function:  %s ", decl->function.identifier );
+			indent( ind );	fprintf( stderr, "function:  %s ", decl->function.identifier );
 			print_typeinfo( decl->function.return_type, ind + 1 );
-			printf( "\n" );
+			fprintf( stderr, "\n" );
 			printDeclarationList( decl->function.param_list, ind );
 			break;
 		case dt_scope:
-			indent( ind );	printf( "SCOPE " );
+			indent( ind );	fprintf( stderr, "SCOPE " );
 			printDeclarationList( decl->scope.decl_list, ind + 1 );
-			printf( "\n" );
+			fprintf( stderr, "\n" );
 			break;
 		default:
-			printf( "UNKNOWN TAG file %s line %d\n", __FILE__, __LINE__ );
+			fprintf( stderr, "UNKNOWN TAG file %s line %d\n", __FILE__, __LINE__ );
 			break;
 	}
 }
@@ -123,7 +123,7 @@ get_type_info( const Declaration * decl )
 		case dt_function:	return decl->function.return_type;
 		case dt_struct:		return 0;
 		case dt_scope:		return 0;
-		default:		printf( "UNKNOWN TAG file %s line %d\n", __FILE__, __LINE__ );	return 0;
+		default:		fprintf( stderr, "UNKNOWN TAG file %s line %d\n", __FILE__, __LINE__ );	return 0;
 	}
 }
 
@@ -138,6 +138,6 @@ get_decl_location( Declaration * decl )
 		case dt_function:	return decl->function.identifier;
 		case dt_struct:		return 0;
 		case dt_scope:		return 0;
-		default:		printf( "UNKNOWN TAG file %s line %d\n", __FILE__, __LINE__ );	return 0;
+		default:		fprintf( stderr, "UNKNOWN TAG file %s line %d\n", __FILE__, __LINE__ );	return 0;
 	}
 }

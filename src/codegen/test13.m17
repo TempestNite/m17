@@ -1,0 +1,16 @@
+int
+main( int argc; char ** argv )
+{
+	int [10]	a;
+	int		i;
+
+	for ( i = 0 ; i < 10 ; i = i + 1 )
+	{
+		a[i] = i;
+	}
+	for ( i = 0 ; i < 10 ; i = i + 1 )
+	{
+		write( a[i] );
+	}
+	return 0;
+}

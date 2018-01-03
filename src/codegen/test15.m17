@@ -1,0 +1,27 @@
+int
+main( int argc; char ** argv )
+{
+	int [5][5]	a;
+	int		i, j;
+	int		x;
+
+	x = 0;
+	write( "hello" );
+	for ( i = 0 ; i < 5 ; i = i + 1 )
+	{
+		for ( j = 0 ; j < 5 ; j = j + 1 )
+		{
+			a[i][j] = x;
+			x = x + 1;
+		}
+	}
+	for ( i = 0 ; i < 5 ; i = i + 1 )
+	{
+		for ( j = 0 ; j < 5 ; j = j + 1 )
+		{
+			write( a[i][j], " " );
+		}
+		write( "\\n" );
+	}
+	return 0;
+}

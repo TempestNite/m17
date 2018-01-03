@@ -20,7 +20,7 @@ add_decl( DeclarationList * dl, Declaration * declaration )
 		{
 			dl->list[0] = *declaration;
 			dl->count = 1;
-			printDeclarationList( dl, 0 );
+//			printDeclarationList( dl, 0 );
 			return dl;
 		}
 	}
@@ -35,7 +35,7 @@ add_decl( DeclarationList * dl, Declaration * declaration )
 		{
 			dl->list[dl->count] = *declaration;
 			dl->count += 1;
-			printDeclarationList( dl, 0 );
+//			printDeclarationList( dl, 0 );
 			return dl;
 		}
 	}
@@ -89,7 +89,7 @@ indent( int lim )
 	int			i;
 
 	for ( i = 0 ; i < lim ; i++ )
-		printf( "\t" );
+		fprintf( stderr, "\t" );
 }
 
 void
@@ -99,16 +99,16 @@ printDeclarationList( DeclarationList * dl, int ind )
 
 	if ( dl == 0 )
 	{
-		indent( ind );	printf( "DeclarationList %lx is empty\n", (unsigned long)dl );
+		indent( ind );	fprintf( stderr, "DeclarationList %lx is empty\n", (unsigned long)dl );
 	}
 	else
 	{
-		printf( "Start DeclarationList count is %d\n", dl->count );
+		fprintf( stderr, "Start DeclarationList count is %d\n", dl->count );
 		for ( i = 0 ; i < dl->count ; i++ )
 		{
-//			printf( " %s", get_identifier( dl->list+i ) );
+//			fprintf( stderr, " %s", get_identifier( dl->list+i ) );
 			printDeclaration( dl->list+i, ind + 1 );
 		}
-		printf( "End DeclarationList count is %d\n", dl->count );
+		fprintf( stderr, "End DeclarationList count is %d\n", dl->count );
 	}
 }

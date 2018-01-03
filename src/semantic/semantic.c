@@ -119,7 +119,7 @@ ensure_struct_exists( const char * identifier, Type * stype, char * filename, in
 
 	if ( (declaration = lookup_struct( identifier )) == 0 )
 	{
-		semantic_error( "%s is not a struct. %s line %d", identifier, filename, linenum );
+		semantic_error( "%s is not a struct. %s line %d\n", identifier, filename, linenum );
 	}
 	else
 	{
@@ -128,7 +128,7 @@ ensure_struct_exists( const char * identifier, Type * stype, char * filename, in
 	}
 }
 
-void
+Declaration *
 ensure_member_exists( const Result * left_opnd, char * identifier, char * filename, int linenum, char * location )
 {
 	TypeInfo *		ltype = left_opnd->type;
@@ -136,16 +136,18 @@ ensure_member_exists( const Result * left_opnd, char * identifier, char * filena
 
 	if ( ltype->tag != tag_struct )
 	{
-		semantic_error( "Use of member selection with non-struct. %s line %d", filename, linenum );
+		semantic_error( "Use of member selection with non-struct. %s line %d\n", filename, linenum );
+		return 0;
 	}
 	else if ( (declaration = lookup_decl( ltype->struct_type->strct.member_list, identifier )) == 0 )
 	{
-		semantic_error( "struct %s does not contain member %s. %s line %d", ltype->struct_type->strct.identifier, identifier, filename, linenum );
+		semantic_error( "struct %s does not contain member %s. %s line %d\n", ltype->struct_type->strct.identifier, identifier, filename, linenum );
+		return 0;
 	}
 	else
 	{
 		strcpy( location, declaration->member.location );
-		return;
+		return declaration;
 	}
 }
 
