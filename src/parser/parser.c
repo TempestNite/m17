@@ -58,6 +58,10 @@ int decldefn()
     Type* stype;
     stype = malloc(sizeof(Type));
 
+    if (struct_defn(stype) == 0 && function(stype) == 0)
+        return 0;
+    else return 1;
+    /*
     if (recognize(VOID_M) == 0)
     {
         // printf("IN\n");
@@ -79,6 +83,33 @@ int decldefn()
     }
     else if (function(stype) == 0)
         return syntax_error("Function after void\n");
+    else return 1;*/
+}
+
+int struct_defn(Type* stype)
+{
+    char* str;
+    str = malloc(sizeof(char) * strlen(curTok->lexeme));
+    strcpy(str, curTok->lexeme);
+    if (recognize(STRUCT_M) == 0)
+        return 0;
+    else if (recognize(ID_M) == 0)
+        return syntax_error("Identifier after struct keyword");
+    else if (enter_struct(add_struct(str)), recognize(lcbrace) == 0)
+        return syntax_error("Left curly brace after struct identifier");
+    else if (member_list(stype) == 0)
+        return syntax_error("MemberList after left curly brace");
+    else if (exit_struct(), recognize(rcbrace) == 0)
+        return syntax_error("Right curly brace after MemberList");
+    else return 1;
+}
+
+int struct_decl(Type* stype)
+{
+    if (recognize(STRUCT_M) == 0)
+        return 0;
+    else if (recognize(ID_M) == 0)
+        return syntax_error("Identifier after struct keyword");
     else return 1;
 }
 // FIX
@@ -115,16 +146,27 @@ int scalar_type(Type* stype)
     else return 0;
 }
 
+int return_type(Type* stype)
+{
+    if (type(stype) == 0 && recognize(VOID_M) == 0)
+        return 0;
+    else return 1;
+}
+
 int function(Type* stype)
 {
     Declaration* decl;
     printf("FUNCTION\n");
-    if ( curTok->id != ID_M )
+    if (return_type(stype) == 0)
         return 0;
+    else if ( curTok->id != ID_M )
+        return syntax_error("identifier after return type in function()");
     else if (printf("FOUND%30s%10d\n",curTok->lexeme, curTok->id),
                 decl=add_function(curTok->lexeme, stype),
                 nextTok(), recognize(lparenth) == 0)
-        return syntax_error("Left paren after function identifier\n");
+    {
+        return syntax_error("Left paren after function identifier\n");   
+    }
     else if (enter_function(decl), opt_parm_list(stype) == 0)
         return syntax_error("Parm list should be optional\n");
     else if (recognize(rparenth) == 0)
@@ -614,15 +656,24 @@ int fcnsuf(Type* stype)
 int simple_type(Type* stype)
 {
     printf("SIMPLE TYPE\n");
-    if (scalar_type(stype) == 0)
+    if ( recognize(CHAR_M) )
     {
-        if (recognize(STRUCT_M) == 0)
-            return 0;
-        else if (recognize(ID_M) == 0)
-            return syntax_error("ID_M after struct in simple_type");
-        else return 1;
+        make_builtin_type(type_char, stype);
+        return 1;
     }
-    else return 1;
+    else if ( recognize(INT_M) )
+    {
+        make_builtin_type(type_int, stype);
+        return 1;
+    }
+    else if ( recognize(FLOAT_M) )
+    {
+        make_builtin_type(type_float, stype);
+        return 1;
+    }
+    else if ( struct_decl(stype) )
+        return 1;
+    else return 0;
 }
 
 int log_OR_expr ()
