@@ -1,0 +1,6 @@
+struct Test {
+	char		c;
+	int *		i;
+	int		i2;
+	char		c2;
+}

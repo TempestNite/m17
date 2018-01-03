@@ -2,7 +2,8 @@
 CC = gcc
 
 # Compiler flags
-CFLAGS = -std=gnu89 -I./src/lexical -I./src/parser -I./src/semantic
+CFLAGS = -std=gnu89 -I./src/lexical -I./src/parser \
+-I./src/semantic -I./src/codegen
 
 # The build SCANNER PARSER_SRC executable:
 DRIVER_BIN		= ./bin/m17
@@ -16,6 +17,7 @@ DECL_SRC 		= ./src/semantic/Declaration
 TYPE_SRC		= ./src/semantic/TypeInfo
 SYM_SRC			= ./src/semantic/symbol_table
 SEM_SRC			= ./src/semantic/semantic
+LOC_SRC			= ./src/codegen/LocGen
 
 PARSER_OBJ 		= parser
 INPUT_OBJ		= Input
@@ -26,10 +28,11 @@ DECLLIST_OBJ	= DeclarationList
 TYPE_OBJ		= TypeInfo
 SYM_OBJ			= symbol_table
 SEM_OBJ			= semantic
+LOC_OBJ			= LocGen
 
 all: $(INPUT_SRC) $(STATE_SRC) $(TOKEN_SRC) \
 	$(PARSER_SRC) $(DECLLIST_SRC) $(DECL_SRC) \
-	$(TYPE_SRC) $(SYM_SRC) $(SEM_SRC) \
+	$(TYPE_SRC) $(SYM_SRC) $(SEM_SRC) $(LOC_SRC) \
 	$(DRIVER_SRC)
 	
 
@@ -48,6 +51,9 @@ $(DECL_SRC): $(DECL_SRC).c $(DECL_SRC).h
 $(SYM_SRC): $(SYM_SRC).c $(SYM_SRC).h
 	$(CC) $(CFLAGS) -c $(SYM_SRC).c
 
+$(LOC_SRC): $(LOC_SRC).c $(LOC_SRC).h
+	$(CC) $(CFLAGS) -c $(LOC_SRC).c
+
 $(SEM_SRC): $(SEM_SRC).c $(SEM_SRC).h
 	$(CC) $(CFLAGS) -c $(SEM_SRC).c
 
@@ -61,12 +67,12 @@ $(PARSER_SRC): $(PARSER_SRC).c $(PARSER_SRC).h
 	$(CC) $(CFLAGS) -c $(PARSER_SRC).c
 
 $(DRIVER_SRC): $(STATE_OBJ).o $(PARSER_OBJ).o \
-	$(INPUT_OBJ).o $(TOKEN_OBJ).o
+	$(INPUT_OBJ).o $(TOKEN_OBJ).o $(LOC_OBJ).o
 
 	$(CC) $(CFLAGS) -o $(DRIVER_BIN) $(DRIVER_SRC).c \
 	$(STATE_OBJ).o $(PARSER_OBJ).o $(INPUT_OBJ).o $(TOKEN_OBJ).o \
 	$(DECL_OBJ).o $(DECLLIST_OBJ).o $(TYPE_OBJ).o $(SYM_OBJ).o \
-	$(SEM_OBJ).o
+	$(SEM_OBJ).o $(LOC_OBJ).o
 
 clean:
 	$(RM) $(DRIVER_BIN) *.o *.h.gch

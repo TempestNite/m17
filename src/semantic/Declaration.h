@@ -23,6 +23,7 @@ typedef struct Struct {
 	char *				identifier;
 	struct DeclarationList *	member_list;
 	unsigned int			memory_size;
+	unsigned int			alignment;
 	struct Declaration *		enclosing;
 	struct Declaration *		next;
 } Struct;

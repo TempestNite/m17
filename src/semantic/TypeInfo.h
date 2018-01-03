@@ -21,6 +21,7 @@ typedef struct TypeInfo {
 	struct Declaration *	struct_type;
 	unsigned int		basic_size;
 	unsigned int		memory_size;
+	unsigned int		alignment;
 	unsigned int		modifier_count;
 	Modifier		modifier[0];
 } TypeInfo;
@@ -39,5 +40,12 @@ TypeInfo *	remove_array( TypeInfo * );
 TypeInfo *	remove_pointer( TypeInfo * );
 void		print_typeinfo( const TypeInfo *, int );
 int		get_size( const TypeInfo * );
+int		get_alignment( const Type * );
 
+int		is_array( const TypeInfo * );
+int		is_pointer( const TypeInfo * );
+int		is_struct( const TypeInfo * );
+ScalarType	getScalarType( const TypeInfo * );
+int		is_char_array( const TypeInfo * );
+int		is_char_pointer( const TypeInfo * );
 #endif

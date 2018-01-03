@@ -8,17 +8,20 @@ setupLocGen( LocGen * this, OGtype ogtype )
 	{
 		case ot_auto:
 			this->ogtype = ogtype;
-			this->space_used = sizeof( void * );;
+			this->space_used = 0;
+			this->alignment = 1;
 			this->multiplier = -1;
 			break;
 		case ot_parm:
 			this->ogtype = ogtype;
-			this->space_used = 2 * sizeof( void * );;
+			this->space_used = 2 * sizeof( void * );
+			this->alignment = 1;
 			this->multiplier = 1;
 			break;
 		case ot_member:
 			this->ogtype = ogtype;
 			this->space_used = 0;
+			this->alignment = 1;
 			this->multiplier = 1;
 			break;
 		default:
@@ -27,30 +30,31 @@ setupLocGen( LocGen * this, OGtype ogtype )
 	return 1;
 }
 
-static int
-get_offset( LocGen * this, int size )
-{
-        this->space_used += size;
-        return this->space_used * this->multiplier;
-}
-
 int
-get_location( LocGen * this, int size, char * location )
+get_location( LocGen * this, int size, int alignment, char * location )
 {
 	int		offset;
 
-	switch( this->ogtype )
+	if ( (alignment & (alignment - 1)) != 0 )
+	{
+		fprintf( stderr, "alignment arg is not a power of 2 file %s line %d\n", __FILE__, __LINE__ );
+		return 0;
+	}
+	else switch( this->ogtype )
 	{
 		case ot_auto:
-			offset = get_offset( this, size );
-			sprintf( location, "%d(%%rbp)", offset );
+			offset = ((this->space_used + alignment - 1) & ~(alignment - 1)) + size;
+			this->space_used = offset;
+			sprintf( location, "%d(%%rbp)", -offset );
 			break;
 		case ot_parm:
-			offset = get_offset( this, size );
+			offset = ((this->space_used + alignment - 1) & ~(alignment - 1));
+			this->space_used = offset + size;
 			sprintf( location, "%d(%%rbp)", offset );
 			break;
 		case ot_member:
-			offset = get_offset( this, size );
+			offset = ((this->space_used + alignment - 1) & ~(alignment - 1));
+			this->space_used = offset + size;
 			sprintf( location, "%d", offset );
 			break;
 		default:
@@ -69,4 +73,13 @@ void
 restore_space_used( LocGen * this, int oldspace )
 {
 	this->space_used = oldspace;
+}
+
+void
+update_alignment( LocGen * locGen, int alignment )
+{
+	if ( alignment > locGen->alignment )
+	{
+		locGen->alignment = alignment;
+	}
 }

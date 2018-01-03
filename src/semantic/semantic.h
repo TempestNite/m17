@@ -12,7 +12,7 @@ void			ensure_array_type( const Result *, char *, int, char * );
 void			ensure_subscript_type( const Result *, char *, int );
 void			ensure_struct_type( const Result *, char *, int );
 void			ensure_struct_exists( const char *, Type *, char *, int );
-void			ensure_member_exists( const Result *, char *, char *, int, char * );
+struct Declaration *	ensure_member_exists( const Result *, char *, char *, int, char * );
 void			ensure_lvalue( const Result *, char *, int );
 
 #endif
