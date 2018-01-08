@@ -17,7 +17,6 @@ int setupParser(int fd)
     printf("STEP1\n");
     setupScanner(fd);
     printf("SETUPSCAN\n");
-    // enter_scope();
     token = malloc(sizeof (*token) );
     token -> lineNumber = 1;
     startcic();
@@ -32,10 +31,13 @@ int setupParser(int fd)
 
 int program ()
 {
+    setup_symbol_table();
     enter_scope();
     decldefn_list();
     clearToken(token);
     clearToken(curTok);
+    free(token->lexeme);
+    free(curTok->lexeme);
     free(token);
     free(curTok);
     return 0;
@@ -56,32 +58,47 @@ int decldefn()
 {
     printf("DECLDEFN\n");
     Type* stype;
+    printf("ALMOST\n");
     stype = malloc(sizeof(Type));
 
-    if (recognize(VOID_M) == 0)
+    if (struct_defn(stype) == 0)
     {
-        // printf("IN\n");
-        if (scalar_type(stype) == 0)
-        {
-            if (recognize(STRUCT_M) == 0)
-                return 0;
-            else if (recognize(ID_M) == 0)
-                return syntax_error("ID after struct\n");
-            else if (stsuffix(stype) == 0)
-                return syntax_error("stsuffix after ID\n");
-            else return 1;
-        }
-        else if (opt_modifier_list(stype) == 0)
-            return syntax_error("opt_modifier_list should be optional\n");
-        else if (function(stype) == 0)
-            return syntax_error("function after opt_modifier_list\n");
-        else return 1;
+        if (function(stype) == 0)
+            return 0;
     }
-    else if (function(stype) == 0)
-        return syntax_error("Function after void\n");
     else return 1;
 }
-// FIX
+
+int struct_defn(Type* stype)
+{
+    printf("STRUCT DEFN\n");
+    if (recognize(STRUCT_M) == 0)
+        return 0;
+    else if (curTok->id != ID_M)
+        return syntax_error("Identifier after struct keyword\n");
+    else if (printf("MATCHED! %30s%10d\n", curTok->lexeme, curTok->id),
+                enter_struct(add_struct(curTok->lexeme)), nextTok(),
+                recognize(lcbrace) == 0)
+    {
+        return syntax_error("Left curly brace after struct identifier\n");
+    }
+    else if (member_list(stype) == 0)
+        return syntax_error("MemberList after left curly brace\n");
+    else if (exit_struct(), recognize(rcbrace) == 0)
+        return syntax_error("Right curly brace after MemberList\n");
+    else return 1;
+}
+
+int struct_decl(Type* stype)
+{
+    printf("STRUCT DECL\n");
+    if (recognize(STRUCT_M) == 0)
+        return 0;
+    else if (recognize(ID_M) == 0)
+        return syntax_error("Identifier after struct keyword");
+    else return 1;
+}
+
 int decldefn_suf()
 {
     printf("DECLDEFN_SUF\n");
@@ -90,44 +107,32 @@ int decldefn_suf()
         return 0; // decldefn decldefsuf
     decldefn_suf(); // return 1 regardless
     exit_scope();
+    return 1;
 }
 
-int scalar_type(Type* stype)
+int return_type(Type* stype)
 {
-    //char identifier[sizeof(curTok->lexeme)];
-    //strcpy(identifier, curTok->lexeme);
-    printf("SCALAR_TYPE\n");
-    if ( recognize(CHAR_M) )
-    {
-        make_builtin_type(type_char, stype);
-        return 1;
-    }
-    else if ( recognize(INT_M) )
-    {
-        make_builtin_type(type_int, stype);
-        return 1;
-    }
-    else if ( recognize(FLOAT_M) )
-    {
-        make_builtin_type(type_float, stype);
-        return 1;
-    }
-    else return 0;
+    printf("RETURN TYPE\n");
+    if (type(stype) == 0 && recognize(VOID_M) == 0)
+        return 0;
+    else return 1;
 }
 
 int function(Type* stype)
 {
     Declaration* decl;
     printf("FUNCTION\n");
-    if ( curTok->id != ID_M )
+    if (return_type(stype) == 0)
         return 0;
-    else if (printf("FOUND%30s%10d\n",curTok->lexeme, curTok->id),
+    else if ( curTok->id != ID_M )
+        return syntax_error("identifier after return type in function()");
+    else if (printf("MATCHED! %30s%10d\n", curTok->lexeme, curTok->id),
                 decl=add_function(curTok->lexeme, stype),
                 nextTok(), recognize(lparenth) == 0)
-        return syntax_error("Left paren after function identifier\n");
-    else if (enter_function(decl), opt_parm_list(stype) == 0)
-        return syntax_error("Parm list should be optional\n");
-    else if (recognize(rparenth) == 0)
+    {
+        return syntax_error("Left paren after function identifier\n");   
+    }
+    else if (enter_function(decl), opt_parm_list(stype), recognize(rparenth) == 0)
         return syntax_error("Right paren after function identifier\n");
     fcnsuf(stype);
     exit_function();
@@ -190,23 +195,27 @@ int identifier_list(Type* stype, LocGen* loc_gen, OGtype ogtype)
     printf("IDENTIFIER LIST\n");
     char* loc;
     char* str;
-    loc = malloc(sizeof(char) * strlen(curTok->lexeme));
-    str = malloc(sizeof(char) * strlen(curTok->lexeme));
+    loc = malloc(sizeof(char) * curTok->tokLen);
+    str = malloc(sizeof(char) * curTok->tokLen);
+    str = strdup(curTok->lexeme);
 
-    strcpy(str, curTok->lexeme);
-    printf("THIS IS STRCPY%s\n", str);
     if (recognize(ID_M) == 0)
         return 0;
-    else if (sprintf(loc, "%d", get_location(loc_gen, \
-                get_size(stype->typeinfo),32,  str)),
+    else if (get_location(loc_gen, get_size(stype->typeinfo), \
+                            stype->typeinfo->alignment, loc),
                 ogtype == ot_parm)
     {
         add_parameter(str, stype, loc);
     }
-    /*else if (ogtype == ot_member)
-        add_member(str, stype, loc);*/
-    /*else if (ogtype == ot_auto)
-        add_variable(str, stype, loc);*/
+    else if (ogtype == ot_member)
+        add_member(str, stype, loc);
+    else if (ogtype == ot_auto)
+    {
+        //printf("THIS IS ADDED: %s\n", str);
+        //printf("THIS IS ADDED: %s\n", loc);
+
+        add_variable(str, stype, loc);
+    }
     roidl(stype, loc_gen, ogtype);
     return 1;
 }
@@ -216,46 +225,49 @@ int roidl(Type* stype, LocGen* loc_gen, OGtype ogtype)
     printf("ROIDL\n");
     char* loc;
     char* str;
-    loc = malloc(sizeof(char) * strlen(curTok->lexeme));
-    str = malloc(sizeof(char) * strlen(curTok->lexeme));
+    loc = malloc(sizeof(char) * curTok->tokLen);
+    str = malloc(sizeof(char) * curTok->tokLen);
 
-    strcpy(str, curTok->lexeme);
     if (recognize(comma) == 0)
         return 1;
-    else if (recognize(ID_M) == 0)
-        return syntax_error("no identifier following comma in roidl\n");
-    else if (sprintf(loc, "%d", 
-                get_location(loc_gen, get_size(stype->typeinfo), 32,str)),
+    else if (strcpy(str, curTok->lexeme), recognize(ID_M) == 0)
+        return 0;
+    else if (get_location(loc_gen, get_size(stype->typeinfo), \
+                            stype->typeinfo->alignment, loc),
                 ogtype == ot_parm)
     {
         add_parameter(str, stype, loc);
     }
-    /*else if (ogtype == ot_member)
-        add_member(str, stype, loc);*/
-    /*else if (ogtype == ot_auto)
-        add_variable(str, stype, loc);*/
+    else if (ogtype == ot_member)
+        add_member(str, stype, loc);
+    else if (ogtype == ot_auto)
+    {
+        //printf("THIS IS ADDED: %s\n", str);
+        //printf("THIS IS ADDED: %s\n", loc);
+
+        add_variable(str, stype, loc);
+    }
     roidl(stype, loc_gen, ogtype);
     return 1;
 }
 
-int type(stype)
+int type(Type* stype)
 {
     printf("TYPE\n");
     if (simple_type(stype) == 0)
         return 0;
-    else if (opt_modifier_list(stype) == 0)
-        return syntax_error("MAY NEED TO CHANGE OPT MOD LIST\n");
-    else return 1;
+    opt_modifier_list(stype);
+    return 1;
 }
 
-int expr_suf()
+int expr_suf(const Result* leftopd, Result* output)
 {
     printf("EXPR_SUF\n");
     if (recognize(equal) == 0)
         return 0;
-    else if (expr() == 0)
+    else if (expr(output) == 0)
         return 1;
-    else if (expr_suf() == 0)
+    else if (expr_suf(leftopd, output) == 0)
         return 1;
     else return 1;
 }
@@ -263,27 +275,30 @@ int expr_suf()
 int opt_expr()
 {
     printf("OPT_EXPR\n");
-    if (expr() == 0)
-        return 1;
+    Result* output;
+    if (expr(output) == 0)
+        return 0;
     else return opt_expr();
 }
 
-int expr ()
+int expr (Result* output)
 {
     printf("EXPR\n");
+    Result leftopd;
 
-    if (log_OR_expr() == 0)
+    if (log_OR_expr(output) == 0)
         return 0;
-    else if (expr_suf() == 0)
+    else if (expr_suf(&leftopd, output) == 0)
         return 1;
     else return 1;
 }
 
 int while_stmt(Type* stype, LocGen* auto_gen)
 {
+    Result* output;
     if (recognize(WHILE_M) == 0)
         return 0;
-    else if (expr() == 0)
+    else if (expr(output) == 0)
         return syntax_error("Expression after left paren\n");
     else if (recognize(lparenth) == 0)
         return syntax_error("Left paren after while missing\n");
@@ -294,13 +309,14 @@ int while_stmt(Type* stype, LocGen* auto_gen)
 
 int do_while_stmt(Type* stype, LocGen* auto_gen)
 {
+    Result* output;
     if (recognize(DO_M) == 0)
         return 0;
     else if (stmt(stype, auto_gen) == 0)
         return syntax_error("Stmt after do\n");
     else if (recognize(lparenth) == 0)
         return syntax_error("Left paren in do while\n");
-    else if (expr() == 0)
+    else if (expr(output) == 0)
         return syntax_error("expressions in do while\n");
     else if (recognize(rparenth) == 0)
         return syntax_error("Right paren in do while\n");
@@ -314,6 +330,7 @@ int recognize(int tokenid)
     if (curTok->id == tokenid)
     {
         printf("MATCHED! %30s%10d\n", curTok->lexeme, curTok->id);
+        // printf("NEXTEDD! %30s%10d\n", token->lexeme, token->id);
         nextTok(); 
         return 1;
     }
@@ -326,9 +343,21 @@ int recognize(int tokenid)
 
 int nextTok()
 {
-    curTok = realloc(curTok, sizeof(*token));
+    int ln;
+    curTok->lexeme = realloc(curTok->lexeme, sizeof(char) * token->tokLen + 1);
+    
     memcpy(curTok, token, sizeof(*token));
-    memset(token, 0x0, sizeof(*token));
+    curTok->lexeme=strdup(token->lexeme);
+    // printf("AFTERSTRCP! %30s%10d\n", curTok->lexeme, curTok->id);
+
+    ln = token -> lineNumber;
+
+    memset(token->lexeme, 0, sizeof(char) * token->tokLen);
+    //printf("AFTERSTRCP2! %30s%10d\n", curTok->lexeme, curTok->id);
+
+    token -> lineNumber = ln;
+    token -> tokLen = 0;
+
     startcic();
     getToken(token);
 }
@@ -364,9 +393,7 @@ int modifier(Type* stype)
                 return syntax_error("Rparen after lparen\n");
             else if (recognize(lparenth) == 0)
                 return syntax_error("Lparen after paren pair in modifier\n");
-            else if (opt_parm_list(stype) == 0)
-                return 1; // opt_parm_list() to always return 1
-            else if (recognize(rparenth) == 0)
+            else if (opt_parm_list(stype), recognize(rparenth) == 0)
                 return syntax_error("Rparen after lparen after (opt_parm_list)\n");
             else return 1;
         }
@@ -454,8 +481,9 @@ int stmt(Type* stype, LocGen* auto_gen)
 
 int expr_stmt()
 {
+    Result* output;
     printf("EXPRSTMT\n");
-    if (expr() == 0)
+    if (expr(output) == 0)
         return 0;
     else if (recognize(semicolon) == 0)
         return syntax_error("semicolon after expr\n");
@@ -481,17 +509,11 @@ int for_stmt(Type* stype, LocGen* auto_gen)
         return 0;
     else if (recognize(lparenth) == 0)
         return syntax_error("Left paren after for stmt\n");
-    else if (opt_expr() == 0)
-        return 1;
-    else if (recognize(semicolon) == 0)
+    else if (opt_expr(), recognize(semicolon) == 0)
         return syntax_error("semicolon after expression\n");
-    else if (opt_expr() == 0)
-        return 1;
-    else if (recognize(semicolon) == 0)
+    else if (opt_expr(), recognize(semicolon) == 0)
         return syntax_error("semicolon after expression\n");
-    else if (opt_expr() == 0)
-        return 1;
-    else if (recognize(rparenth) == 0)
+    else if (opt_expr(), recognize(rparenth) == 0)
         return syntax_error("Right paren after for stmt\n");
     else if (stmt(stype, auto_gen) == 0)
         return syntax_error("Statement after for stmt\n");
@@ -500,20 +522,20 @@ int for_stmt(Type* stype, LocGen* auto_gen)
 
 int if_stmt(Type* stype, LocGen* auto_gen)
 {
+    Result* output;
     printf("IFSTMT\n");
     if (recognize(IF_M) == 0)
         return 0;
     else if (recognize(lparenth) == 0)
         return syntax_error("Left paren after for stmt\n");
-    else if (expr() == 0)
+    else if (expr(output) == 0)
         return 1;
     else if (recognize(rparenth) == 0)
         return syntax_error("Right paren after for stmt\n");
     else if (stmt(stype, auto_gen) == 0)
         return syntax_error("Statement after for stmt\n");
-    else if (opt_else(stype, auto_gen) == 0)
-        return 1;
-    else return 1;
+    opt_else(stype, auto_gen);
+    return 1;
 }
 
 int opt_else(Type* stype, LocGen* auto_gen)
@@ -523,7 +545,8 @@ int opt_else(Type* stype, LocGen* auto_gen)
         return 1;
     else if (stmt(stype, auto_gen) == 0)
         return syntax_error("stmt after else");
-    else return opt_else(stype, auto_gen);
+    opt_else(stype, auto_gen);
+    return 1;
 }
 
 int return_stmt()
@@ -531,10 +554,11 @@ int return_stmt()
     printf("RETURN STMT\n");
     if (recognize(RETURN_M) == 0)
         return 0;
-    else if (opt_expr() == 0)
-        return 1;
-    else if (recognize(semicolon) == 0)
-        return syntax_error("semicolon after return");
+    else if (opt_expr(), recognize(semicolon) == 0)
+    {           
+        printf("INSTEAD! %30s%10d\n", curTok->lexeme, curTok->id);
+        return syntax_error("semicolon after return\n");
+    }
     else return 1;
 }
 
@@ -545,24 +569,6 @@ int mlsuf(Type* stype)
         return 0;
     else if (mlsuf(stype) == 0)
         return 1;
-    else return 1;
-}
-
-int stsuffix(Type* stype)
-{
-    printf("STSUFFIX\n");
-    if (recognize(lcbrace) == 0)
-    {
-        if (opt_modifier_list(stype) == 0)
-            return 0;
-        else if (function(stype) == 0)
-            return syntax_error("Function after opt_modifier_list\n");
-        else return 1;
-    }
-    else if (member_list(stype) == 0)
-        return syntax_error("Member list after left curly brace in stsuffix\n");
-    else if (recognize(rcbrace) == 0)
-        return syntax_error("Right curly brace after member list in stsuffix\n");
     else return 1;
 }
 
@@ -614,145 +620,160 @@ int fcnsuf(Type* stype)
 int simple_type(Type* stype)
 {
     printf("SIMPLE TYPE\n");
-    if (scalar_type(stype) == 0)
+    if ( recognize(CHAR_M) )
     {
-        if (recognize(STRUCT_M) == 0)
-            return 0;
-        else if (recognize(ID_M) == 0)
-            return syntax_error("ID_M after struct in simple_type");
-        else return 1;
+        make_builtin_type(type_char, stype);
+        return 1;
     }
-    else return 1;
+    else if ( recognize(INT_M) )
+    {
+        make_builtin_type(type_int, stype);
+        return 1;
+    }
+    else if ( recognize(FLOAT_M) )
+    {
+        make_builtin_type(type_float, stype);
+        return 1;
+    }
+    else if ( struct_decl(stype) )
+    {
+        make_struct_type(curTok->lexeme, stype);
+        return 1;
+    }
+    else return 0;
 }
 
-int log_OR_expr ()
+int log_OR_expr (Result* output)
 {
     printf("log_OR_expr\n");
-    if (log_AND_expr() == 0)
+    Result leftopd;
+    if (log_AND_expr(output) == 0)
         return 0;
-    else if (loe_suf() == 0)
+    else if (loe_suf(&leftopd, output) == 0)
         return 1;
     else return 1;
 }
 
-int loe_suf()
+int loe_suf(const Result* leftopd, Result* output)
 {
     printf("loe_suf\n");
     if (recognize(or) == 0)
         return 0;
-    else if (log_OR_expr() == 0)
+    else if (log_OR_expr(output) == 0)
         return syntax_error("log_OR_expr after || operator\n");
-    else if (loe_suf() == 0)
+    else if (loe_suf(leftopd, output) == 0)
         return 1;
     else return 1;
 }
 
-int log_AND_expr()
+int log_AND_expr(Result* output)
 {
     printf("log_AND_expr\n");
-    if (relation_expr() == 0)
+    Result leftopd;
+    if (relation_expr(output) == 0)
         return 0;
-    else if (lae_suf() == 0)
+    else if (lae_suf(&leftopd, output) == 0)
         return 1;
     else return 1;
 }
 
-int lae_suf()
+int lae_suf(const Result* leftopd, Result* output)
 {
     printf("lae_suf\n");
     if (recognize(and) == 0)
         return 0;
-    else if (relation_expr() == 0)
+    else if (relation_expr(output) == 0)
         return syntax_error("relation_expr after && comparison operator\n");
-    else if (lae_suf() == 0)
+    else if (lae_suf(leftopd, output) == 0)
         return 1;
     else return 1;
 }
 
-int relation_expr()
+int relation_expr(Result* output)
 {
     printf("relation_expr\n");
-    if (additive_expr() == 0)
+    Result leftopd;
+    if (additive_expr(output) == 0)
         return 0;
-    else if (rel_suf() == 0)
+    else if (rel_suf(&leftopd, output) == 0)
         return 1;
     else return 1;
 }
 
-int rel_suf()
+int rel_suf(const Result* leftopd, Result* output)
 {
     printf("rel_suf\n");
     if ( (recognize(equal) == 0) && (recognize(notequal) == 0) && (recognize(gt) == 0) &&
             (recognize(lt) == 0) && (recognize(le) == 0) && (recognize(ge) == 0) )
         return 0;
-    else if (additive_expr() == 0)
+    else if (additive_expr(output) == 0)
         return syntax_error("additive_expr after == operator");
-    else if(rel_suf() == 0)
+    else if(rel_suf(leftopd, output) == 0)
         return 1;
     else return 1;
 }
 
-int additive_expr()
+int additive_expr(Result* output)
 {
     printf("additive_expr\n");
-    if (multiplicative_expr() == 0)
+    Result leftopd;
+    if (multiplicative_expr(output) == 0)
         return 0;
-    else if (add_suf() == 0)
+    else if (add_suf(&leftopd, output) == 0)
         return 1;
     else return 1;
 }
 
-int add_suf()
+int add_suf(const Result* leftopd, Result* output)
 {
     printf("add_suf\n");
     if ( (recognize(plus) == 0) && (recognize(minus) == 0) )
         return 0;
-    else if (add_suf() == 0)
+    else if (add_suf(leftopd, output) == 0)
         return 1;
     else return 1;
 }
 
-int multiplicative_expr()
+int multiplicative_expr(Result* output)
 {
     printf("Mult_expr\n");
-    if (unary_expr() == 0)
+    Result leftopd;
+    if (unary_expr(output) == 0)
         return 0;
-    else if (mult_suf() == 0)
+    else if (mult_suf(&leftopd, output) == 0)
         return 1;
     else return 1;
 }
 
-int mult_suf()
+int mult_suf(const Result* leftopd, Result* output)
 {
     printf("Mult_suf\n");
     if ( (recognize(ast) == 0) && (recognize(slash) == 0) && (recognize(percent) == 0) )
         return 0;
-    else if (mult_suf() == 0)
+    else if (mult_suf(leftopd, output) == 0)
         return 1;
     else return 1;
 }
 
-int unary_expr()
+int unary_expr(Result* output)
 {
     printf("unary_expr\n");
     if ( (recognize(minus) == 0) && (recognize(bang) == 0) && (recognize(bitand) == 0) &&
             (recognize(bitnot) == 0) )
     {
-        if (primary_expr() == 0)
+        if (primary_expr(output) == 0)
             return 0;
         else return 1;
     }
-    else if (primary_expr() == 0)
+    else if (primary_expr(output) == 0)
         return syntax_error("primary expr after unary_expr\n");
-        // exit(0);
     else return 1;
 }
 
-// SOMETHING HERE CAME BACK AS ZERO
-int primary_expr()
+int primary_expr(Result* output)
 {
     printf("Primary_expr\n");
-    if (lhs() == 0)
+    if (lhs(output) == 0)
     {
         if (recognize(READ_M) == 0)
         {
@@ -776,7 +797,7 @@ int primary_expr()
                                                 return 0;
                                             else if (recognize(lparenth) == 0)
                                                 return syntax_error("lparen after DEALLOC\n");
-                                            else if (expr() == 0)
+                                            else if (expr(output) == 0)
                                                 return syntax_error("Expr after lparen dealloc\n");
                                             else if (recognize(rparenth) == 0)
                                                 return syntax_error("rparen after expr for dealloc\n");
@@ -784,13 +805,13 @@ int primary_expr()
                                         }
                                         else if (recognize(lparenth) == 0)
                                             return syntax_error("lparen after ALLOC\n");
-                                        else if (expr() == 0)
+                                        else if (expr(output) == 0)
                                             return syntax_error("Expr after lparen alloc\n");
                                         else if (recognize(rparenth) == 0)
                                             return syntax_error("rparen after expr for alloc\n");
                                         else return 1;
                                     }
-                                    else if (expr() == 0)
+                                    else if (expr(output) == 0)
                                         return syntax_error("Expr after lparen primary_expr\n");
                                     else if (recognize(rparenth) == 0)
                                         return syntax_error("Right paren after expr\n");
@@ -808,7 +829,7 @@ int primary_expr()
             }
             else if (recognize(lparenth) == 0)
                 return syntax_error("Left paren after WRITE\n");
-            else if (expr_list() == 0)
+            else if (expr_list(output) == 0)
                 return syntax_error("EXPR LIST after left paren\n");
             else if (recognize(rparenth) == 0)
                 return syntax_error("Right paren after LHS list\n");
@@ -816,7 +837,7 @@ int primary_expr()
         }
         else if (recognize(lparenth) == 0)
             return syntax_error("Left paren after READ\n");
-        else if (lhs_list() == 0)
+        else if (lhs_list(output) == 0)
             return syntax_error("LHS LIST after left paren\n");
         else if (recognize(rparenth) == 0)
             return syntax_error("Right paren after LHS list\n");
@@ -826,17 +847,22 @@ int primary_expr()
 
 }
 
-int lhs()
+int lhs(Result* output)
 {
     printf("LHS\n");
+    Result leftopd;
+    char* str = malloc(sizeof(char) * curTok->tokLen);
+    str = strdup(curTok->lexeme);
+    // str = strdup(curTok->lexeme);
     if (recognize(ID_M) == 0)
         return 0;
-    else if (lhs_suf() == 0)
+    else if (ensure_declaration_exists(str, __FILE__, __LINE__),
+                lhs_suf(&leftopd, output) == 0)
         return 1;
     else return 1;
 }
 
-int lhs_suf()
+int lhs_suf(const Result* leftopd, Result* output)
 {
     printf("LHSSUF\n");
     if (recognize(lsbrace) == 0)
@@ -845,77 +871,75 @@ int lhs_suf()
         {
             if (recognize(lparenth) == 0)
                 return 0;
-            else if (opt_expr_list() == 0)
-                return 1; // opt_expr_list() to always return 1
-            else if (recognize(rparenth) == 0)
+            else if (opt_expr_list(output), recognize(rparenth) == 0)
                 return syntax_error("Right paren after (opt_expr_list)\n");
             else return 1;
         }
         else if (recognize(ID_M) ==0)
             return syntax_error("IDENTIFIER after dot\n");
-        else if (lhs_suf() == 0)
+        else if (lhs_suf(leftopd, output) == 0)
             return 1;
         else return 1;
     }
-    else if (expr() == 0)
+    else if (expr(output) == 0)
         return syntax_error("Expression after lsbrace\n");
     else if (recognize(rsbrace) == 0)
         return syntax_error("rsbrace after expression\n");
-    else if (lhs_suf() == 0)
+    else if (lhs_suf(leftopd, output) == 0)
         return 1;
     else return 1;
 }
 
-int lhs_list()
+int lhs_list(Result* output)
 {
     printf("LHSLIST\n");
-    if (lhs() == 0)
+    if (lhs(output) == 0)
         return 0;
-    else if (lhs_list_suf() == 0)
+    else if (lhs_list_suf(output) == 0)
         return 1;
     else return 1;
 }
 
-int lhs_list_suf()
+int lhs_list_suf(Result* output)
 {
     printf("LHSLISTSUF\n");
     if (recognize(comma) == 0)
         return 0;
-    else if (lhs() == 0)
+    else if (lhs(output) == 0)
         return syntax_error("LHS after comma\n");
-    else if (lhs_list_suf() == 0)
+    else if (lhs_list_suf(output) == 0)
         return 1;
     else return 1;
 }
 
-int expr_list()
+int expr_list(Result* output)
 {
     printf("EXPRLIST\n");
-    if (expr() == 0)
+    if (expr(output) == 0)
         return 0;
-    else if (expr_list_suf() == 0)
+    else if (expr_list_suf(output) == 0)
         return 1;
     else return 1;
 }
 
-int expr_list_suf()
+int expr_list_suf(Result* output)
 {
     printf("EXPRLISTSUF\n");
     if (recognize(comma) == 0)
         return 0;
-    else if (expr() == 0)
+    else if (expr(output) == 0)
         return syntax_error("Expression after comma\n");
-    else if (expr_list_suf() == 0)
+    else if (expr_list_suf(output) == 0)
         return 1;
     else return 1;
 }
 
-int opt_expr_list()
+int opt_expr_list(Result* output)
 {
     printf("OPTEXPRLIST\n");
-    if (expr_list() == 0)
+    if (expr_list(output) == 0)
         return 1;
-    else return opt_expr_list();
+    else return opt_expr_list(output);
 }
 
 int syntax_error(char* str)
