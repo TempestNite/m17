@@ -10,7 +10,7 @@ void addLex (Token *token, char ch)
     token -> lexeme = (char *) realloc (token -> lexeme,
                                             sizeof(char) * (token->tokLen+1));
     *( (token -> lexeme) + token -> tokLen ) = ch;
-    token -> tokLen++;
+    ++token -> tokLen;
 }
 
 void printToken (Token *token)
